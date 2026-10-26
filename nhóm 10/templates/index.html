@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Gợi Ý Điểm Đến Du Lịch - Decision Support System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon"><i class="fa-solid fa-compass"></i></div>
+      <div class="brand-info">
+        <span class="brand-title">CTRS - Intelligent Engine</span>
+        <span class="brand-sub">Hệ thống hỗ trợ ra quyết định du lịch Trung Quốc</span>
+      </div>
+    </div>
+    <div class="nav-meta">
+      <span class="status-indicator"><i class="fa-solid fa-circle"></i> KNN Model v1.2: Active</span>
+      <span class="meta-tag">Cơ sở dữ liệu: 100 POI</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="dashboard-layout">
+    
+    <!-- Sidebar / Input Parameters -->
+    <aside class="panel filter-panel">
+      <div class="panel-header">
+        <i class="fa-solid fa-sliders"></i>
+        <h2>Tham Số Đầu Vào</h2>
+      </div>
+
+      <form id="filterForm" onsubmit="return false;">
+        <div class="form-group">
+          <label for="selCity"><i class="fa-solid fa-map-location-dot"></i> Khu vực mục tiêu (Tỉnh / Thành phố)</label>
+          <select id="selCity" class="form-control">
+            {% for c in cities %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="selCat"><i class="fa-solid fa-shapes"></i> Phân loại sở thích</label>
+          <select id="selCat" class="form-control">
+            {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="inpBudget"><i class="fa-solid fa-wallet"></i> Ngân sách (VNĐ)</label>
+            <input type="number" id="inpBudget" class="form-control" value="500000" step="50000" min="0">
+          </div>
+          <div class="form-group col">
+            <label for="inpDays"><i class="fa-solid fa-calendar-day"></i> Thời gian (Ngày)</label>
+            <input type="number" id="inpDays" class="form-control" value="1" min="1" max="3" step="1">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="selSeason"><i class="fa-solid fa-cloud-sun"></i> Mùa dự kiến</label>
+          <select id="selSeason" class="form-control">
+            {% for s in seasons %}
+              <option value="{{ s }}">{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <button class="btn btn-primary" id="btnGoiY">
+          <i class="fa-solid fa-bolt"></i> Xử lý & Phân tích KNN
+        </button>
+      </form>
+    </aside>
+
+    <!-- Workspace / Display Results -->
+    <section class="panel result-panel">
+      <div class="panel-header flex-between">
+        <div class="header-title">
+          <i class="fa-solid fa-chart-simple"></i>
+          <h2>Báo Cáo Đề Xuất Phù Hợp (Top 3)</h2>
+        </div>
+        <span id="resultCount" class="badge">Sẵn sàng</span>
+      </div>
+
+      <!-- State placeholder khi chưa bấm -->
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon"><i class="fa-solid fa-network-wired"></i></div>
+        <h3>Chưa có dữ liệu phân tích</h3>
+        <p>Chọn các thông số tham chiếu bên trái và bấm <strong>"Xử lý & Phân tích KNN"</strong> để trích xuất 3 phương án tối ưu nhất.</p>
+      </div>
+
+      <!-- List Results -->
+      <div id="resultsList" class="results-container hidden"></div>
+
+      <!-- System Log / Explanation -->
+      <div class="system-logs">
+        <div class="log-title"><i class="fa-solid fa-terminal"></i> Log thuật toán:</div>
+        <p id="explainNote">Chờ khởi tạo pipeline xử lý...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal Feedback -->
+  <div id="feedbackModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-comment-dots"></i> Đánh giá kết quả đề xuất</h3>
+        <button id="closeModalBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="feedbackTargetPlace" class="target-title">Địa điểm: ...</p>
+        
+        <div class="form-group">
+          <label>Độ chính xác của gợi ý:</label>
+          <div class="rating-stars" id="starContainer">
+            <i class="fa-solid fa-star active" data-rating="1"></i>
+            <i class="fa-solid fa-star active" data-rating="2"></i>
+            <i class="fa-solid fa-star active" data-rating="3"></i>
+            <i class="fa-solid fa-star active" data-rating="4"></i>
+            <i class="fa-solid fa-star active" data-rating="5"></i>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="feedbackText">Góp ý bổ sung (tùy chọn):</label>
+          <textarea id="feedbackText" class="form-control textarea" placeholder="Nhận xét của bạn về địa điểm này..."></textarea>
+        </div>
+
+        <button id="btnSubmitFeedback" class="btn btn-primary">
+          <i class="fa-solid fa-paper-plane"></i> Gửi đánh giá
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
