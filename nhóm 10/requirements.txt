@@ -1,6 +1,6 @@
-streamlit
+flask
+joblib
 pandas
 scikit-learn
-joblib
 openpyxl
-pyarrow
+gunicorn
